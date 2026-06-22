@@ -80,6 +80,9 @@ Live tx hash on cspr.live
 
 [@CasperHiveMind_bot](https://t.me/CasperHiveMind_bot)
 
+⚠️ Note: The bot runs on a local development server. 
+To test live, contact us to schedule a demo session.
+
 ## 👤 Built for
 
 [Casper Agentic Buildathon 2026](https://dorahacks.io)
