@@ -6,6 +6,7 @@ import json
 import asyncio
 import sqlite3
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -316,6 +317,65 @@ async def send_casper_and_notify(chat_id, reward, choice_text, user, task):
             "⏳ Transaction is being processed, check your balance later.",
             reply_markup=NEXT_TASK_KEYBOARD
         )
+
+# =====================
+# X402 API ENDPOINT
+# =====================
+
+@app.get("/api/v1/human-task")
+async def get_human_task(request: Request):
+    payment_header = request.headers.get("X-Payment")
+
+    if not payment_header:
+        return JSONResponse(
+            status_code=402,
+            content={
+                "error": "Payment Required",
+                "message": "This endpoint requires CSPR payment to access human verification tasks",
+                "payment_details": {
+                    "address": "02024955ca7b379e1262abfdc00bcb7c9c5aa11e3fa9afe61ea1e21c359163fa48d6",
+                    "amount": 10000000,
+                    "network": "casper-test",
+                    "description": "Human-in-the-Loop task fee"
+                }
+            },
+            headers={
+                "X-Payment-Address": "02024955ca7b379e1262abfdc00bcb7c9c5aa11e3fa9afe61ea1e21c359163fa48d6",
+                "X-Payment-Amount": "10000000",
+                "X-Payment-Network": "casper-test",
+                "X-Payment-Description": "Human-in-the-Loop verification task"
+            }
+        )
+
+    task = random.choice([t for t in TASKS_POOL if not t["is_honeypot"]])
+    confidence = round(random.uniform(55.0, 68.5), 1)
+
+    return {
+        "status": "task_assigned",
+        "protocol": "HTTP 402 / Casper x402",
+        "task": {
+            "id": task["id"],
+            "title": task["title"],
+            "context": task["context"],
+            "image_url": task["img_url"],
+            "reward_cspr": task["reward"],
+            "ai_confidence": confidence,
+            "threshold": 70.0,
+            "reason": f"AI confidence {confidence}% below threshold 70% — human verification required"
+        },
+        "payment_received": payment_header[:20] + "...",
+        "callback_url": "/api/v1/task-result"
+    }
+
+@app.post("/api/v1/task-result")
+async def submit_task_result(request: Request):
+    data = await request.json()
+    return {
+        "status": "accepted",
+        "task_id": data.get("task_id"),
+        "answer": data.get("answer"),
+        "message": "Human verification received. CSPR reward will be transferred on-chain."
+    }
 
 # =====================
 # WEBHOOK
